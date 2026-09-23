@@ -18,6 +18,8 @@ from azure.appconfiguration.provider._azureappconfigurationproviderbase import (
 )
 from azure.appconfiguration.provider._models import SettingSelector
 from azure.appconfiguration.provider._constants import (
+    FEATURE_FLAG_KEY,
+    FEATURE_MANAGEMENT_KEY,
     NULL_CHAR,
     TELEMETRY_KEY,
     METADATA_KEY,
@@ -294,6 +296,24 @@ class TestAzureAppConfigurationProviderBase(unittest.TestCase):
             ]
             result = self.provider._process_key_value_base(config)
             self.assertEqual(result, '{"invalid": json}')  # Should return as string
+
+    def test_process_ff_with_empty_list(self):
+        """Test that an empty feature-flag refresh clears stale cached flags."""
+        provider = AzureAppConfigurationProviderBase(feature_flag_enabled=True)
+        provider._dict = {
+            "key": "value",
+            FEATURE_MANAGEMENT_KEY: {
+                FEATURE_FLAG_KEY: [{"id": "Alpha", "enabled": True}],
+            },
+        }
+        processed = provider._process_feature_flags(
+            processed_settings=provider._dict,
+            processed_feature_flags=provider._dict[FEATURE_MANAGEMENT_KEY][FEATURE_FLAG_KEY],
+            feature_flags=[],
+        )
+        self.assertEqual(processed["key"], "value")
+        self.assertIn(FEATURE_MANAGEMENT_KEY, processed)
+        self.assertListEqual(processed[FEATURE_MANAGEMENT_KEY][FEATURE_FLAG_KEY], [])
 
     def test_update_ff_telemetry_metadata(self):
         """Test feature flag telemetry processing."""
